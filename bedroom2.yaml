@@ -1,0 +1,156 @@
+substitutions:
+  room_name: Bedroom 2
+  
+esphome:
+  name: bedroom2
+  friendly_name: $room_name
+  area: Bedroom 2
+  comment: "MDtronix 4ch Smart Switch"
+  project:
+    name: "MDtronix.4ch Smart Switch"
+    version: "3.0" 
+
+esp8266:
+  board: esp8285
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap: {}
+  fast_connect: True
+  manual_ip: 
+    static_ip: 192.168.0.160
+    gateway: 192.168.0.1
+    subnet: 255.255.255.0
+
+captive_portal:
+logger:
+api: 
+ota:
+  - platform: esphome
+web_server:
+  version: 3
+debug:
+
+mqtt:
+  broker: 192.168.0.205
+  username: homeassistant
+  password: darkmaster
+  discover_ip: False
+  discovery: false
+  id: mqtt_client
+  
+output:
+  - platform: gpio
+    pin: 12
+    id: relay_1
+  - platform: gpio
+    pin: 14
+    id: relay_2
+  - platform: gpio
+    pin: 0
+    id: relay_3
+  - platform: gpio
+    pin: 2
+    id: relay_4
+
+light:
+  - platform: binary
+    output: relay_1
+    name: Backyard Light
+    id: light_1
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: binary
+    output: relay_2
+    name: Tube Light
+    id: light_2
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: binary
+    output: relay_3
+    name: Bulb
+    id: light_3
+    restore_mode: RESTORE_DEFAULT_OFF
+
+fan:
+  - platform: template
+    speed_count: 6
+    name: Fan
+    id: fan_1
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - output.turn_on: relay_4
+    on_turn_off:
+      - output.turn_off: relay_4  
+    on_speed_set:
+      lambda: |-
+        if(id(fan_1).state)
+        {
+          switch(id(fan_1).speed)
+          {
+            case 1:
+              id(mqtt_client).publish("cmnd/irblaster/IRSend", "{\"Protocol\":\"NEC\",\"Bits\":32,\"Data\":\"0xCFD12E\",\"DataLSB\":\"0xF38B74\",\"Repeat\":0}");
+              break;
+            case 2:
+              id(mqtt_client).publish("cmnd/irblaster/IRSend", "{\"Protocol\":\"NEC\",\"Bits\":32,\"Data\":\"0xCF09F6\",\"DataLSB\":\"0xF3906F\",\"Repeat\":0}"); 
+              break;
+            case 3:
+              id(mqtt_client).publish("cmnd/irblaster/IRSend", "{\"Protocol\":\"NEC\",\"Bits\":32,\"Data\":\"0xCF51AE\",\"DataLSB\":\"0xF38A75\",\"Repeat\":0}");
+              break;
+            case 4:
+              id(mqtt_client).publish("cmnd/irblaster/IRSend", "{\"Protocol\":\"NEC\",\"Bits\":32,\"Data\":\"0xCFC936\",\"DataLSB\":\"0xF3936C\",\"Repeat\":0}");
+              break;
+            case 5:
+              id(mqtt_client).publish("cmnd/irblaster/IRSend", "{\"Protocol\":\"NEC\",\"Bits\":32,\"Data\":\"0xCF11EE\",\"DataLSB\":\"0xF38877\",\"Repeat\":0}");
+              break;
+            case 6:
+              id(mqtt_client).publish("cmnd/irblaster/IRSend", "{\"Protocol\":\"NEC\",\"Bits\":32,\"Data\":\"0xCFF10E\",\"DataLSB\":\"0xF38F70\",\"Repeat\":0}");
+              break;
+          }
+        }
+binary_sensor:  
+  - platform: gpio
+    id: switch_1
+    pin:
+      number: 5
+      mode: INPUT_PULLUP
+      inverted: true
+    on_state:
+      - light.toggle: light_1
+      
+  - platform: gpio
+    id: Switch_2
+    pin:
+      number: 4
+      mode: INPUT_PULLUP
+      inverted: true
+    on_state:
+      - light.toggle: light_2
+    
+  - platform: gpio
+    id: Switch_3
+    pin:
+      number: 13
+      mode: INPUT_PULLUP
+      inverted: true
+    on_state:
+      - light.toggle: light_3
+      
+  - platform: gpio
+    id: Switch_4
+    pin:
+      number: 10
+      mode: INPUT_PULLUP
+      inverted: true
+    on_state:
+      - fan.toggle: fan_1
+
+text_sensor:
+  - platform: debug
+    reset_reason:
+      name: "Reset Reason"         
+
+button:
+  - platform: restart
+    name: restart
+  - platform: factory_reset
+    name: Factory reset 
