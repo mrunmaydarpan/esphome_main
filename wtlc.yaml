@@ -102,7 +102,7 @@ sensor:
     id: water_level_id
     accuracy_decimals: 0
     unit_of_measurement: '%'
-    # update_interval: 5s
+    update_interval: 1s
     name: Level
     lambda: |-
       int level = map(id(sensor_id).state, ${tank_height}, ${full_tank_height}, 0, 100);
