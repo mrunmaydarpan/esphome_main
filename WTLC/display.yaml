@@ -2,18 +2,6 @@
   model: "SSD1306 128x64"
   id: oled_id
   address: 0x3C
-    # lambda: |-
-    #   int x = (it.get_width() - id(mdtronix_logo).get_width()) / 2;
-    #   int y = (it.get_height() - id(mdtronix_logo).get_height()) / 2;
-    #   it.image(x, y, id(mdtronix_logo));
-    #   if (id(ota_progress) > 0 && id(ota_progress) < 100) {
-    #     it.fill(COLOR_OFF);  // Clear screen
-    #     it.printf(0, 0, id(font1), "Updating...");
-    #     it.rectangle(0, 20, it.get_width(), 10);  // outline
-    #     int bar_width = (int)((it.get_width() - 2) * id(ota_progress) / 100.0f);
-    #     it.filled_rectangle(1, 21, bar_width, 8);  // fill
-    #     it.printf((it.get_width()/2)-10, 35, id(font1), "%0.0f%%", id(ota_progress));
-    #   }
   pages:
     - id: oled_clear_page
       lambda: |-
@@ -23,10 +11,17 @@
         int x = (it.get_width() - id(mdtronix_logo).get_width()) / 2;
         int y = (it.get_height() - id(mdtronix_logo).get_height()) / 2;
         it.image(x, y, id(mdtronix_logo));
+
     - id: oled_level_page
       lambda: |-
-          it.printf(0, 0, id(font1), "Level: %.0f%%", id(water_level_id).state);
-          it.printf(0, 20, id(font1),id(mode_id).state?"AUTO":"MANUAL");
-          it.printf(0, 40, id(font1), "Distance: %.0fcm", id(sensor_id).state);
-
-          
+        it.printf(0, 0, id(font1), "Level: %.0f%%", id(water_level_id).state);
+        it.printf(0, 20, id(font1),id(mode_id).state?"AUTO":"MANUAL");
+        it.printf(0, 40, id(font1), "Distance: %.0fcm", id(sensor_id).state);
+        
+    - id: oled_ota_page
+      lambda: |-
+        it.printf(0, 0, id(font1), "Updating...");
+        it.rectangle(0, 20, it.get_width(), 10);  // outline
+        int bar_width = (int)((it.get_width() - 2) * id(ota_progress) / 100.0f);
+        it.filled_rectangle(1, 21, bar_width, 8);  // fill
+        it.printf((it.get_width()/2)-10, 35, id(font1), "%0.0f%%", id(ota_progress));
