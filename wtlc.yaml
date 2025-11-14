@@ -18,19 +18,20 @@ esphome:
   name: wtlc
   friendly_name: WTLC
   project:
-    name: "mdtronix.WTLC"
+    name: "MDtronix.WTLC"
     version: "HW v9.0"
-  # on_boot:
-  #   then:
-  #     - display.page.show: oled_clear_page
-  #     - delay: 3s
+  on_boot:
+    then:
+      - display.page.show: oled_splash_page
+      - delay: 5s
+      - display.page.show: oled_level_page
     
 esp8266:
   board: esp12e
   restore_from_flash: true
 
-preferences:
-  flash_write_interval: 10s
+# preferences:
+#   flash_write_interval: 1s
 
 logger:
 debug:
@@ -92,30 +93,11 @@ font:
     id: font1
     size: 12
 
-display: !include WTLC/oled_wtlc.yaml
-sensor:
-  - platform: a02yyuw
-    name: "Distance"
-    id: sensor_id
-    unit_of_measurement: cm
-    uart_id: sensor_uart_id
-    accuracy_decimals: 0
-    entity_category: "diagnostic"
-    filters:
-      - multiply: 0.1     # Convert mm to cm
-      - throttle: 1s      # Update every 1 second
-      - median:           # Smooth out noise
-          window_size: 7
-          send_every: 3
-          send_first_at: 1
-      - offset: 1.2       # Add offset, if needed
-      - lambda: |-
-          if (x < 0) return 0;  // Ignore negative values
-          return x;
-    on_value:
-      then:
-        - component.update: water_level_id
+display: !include WTLC/display.yaml
 
+sensor:
+  - !include WTLC/sensors.yaml
+        
   - platform: template
     id: water_level_id
     accuracy_decimals: 0
@@ -127,6 +109,15 @@ sensor:
       if (level < 0) level = 0;
       if (level > 100) level = 100;
       return level;
+    filters:
+      - throttle: 1s      # Update every 1 second
+      - median:           # Smooth out noise
+          window_size: 7
+          send_every: 3
+          send_first_at: 1  
+    on_value:
+      then:
+      - display.page.show: oled_level_page
 
 number:
   - platform: template
@@ -227,4 +218,4 @@ binary_sensor:
 text_sensor:
   - platform: debug
     reset_reason:
-      name: "Reset Reason"  
+      name: "Reset Reason"

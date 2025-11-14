@@ -26,9 +26,7 @@
     - id: oled_level_page
       lambda: |-
           it.printf(0, 0, id(font1), "Level: %.0f%%", id(water_level_id).state);
-          if (id(pump_id).state) {
-            it.printf(0, 20, id(font1), "Pump: ON");
-          } else {
-            it.printf(0, 20, id(font1), "Pump: OFF");
-          }
+          it.printf(0, 20, id(font1),id(mode_id).state?"AUTO":"MANUAL");
           it.printf(0, 40, id(font1), "Distance: %.0fcm", id(sensor_id).state);
+
+          
