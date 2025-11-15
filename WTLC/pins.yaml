@@ -1,3 +1,4 @@
+substitutions:  
   relay_1_pin: 10
   relay_2_pin: 13
   relay_3_pin: 15

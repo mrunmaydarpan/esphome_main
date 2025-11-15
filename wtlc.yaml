@@ -2,82 +2,14 @@ substitutions:
   tank_height: 100
   full_tank_height: 10
 
-  relay_1_pin: 10
-  relay_2_pin: 13
-  relay_3_pin: 15
-  buzzer_pin: 2
-  led_pin: 16
-  sda_pin: 4
-  scl_pin: 5
-  srx_pin: 12
-  stx_pin: 14
-  button_pin: 0
-  mode_pin: 3
+packages:
+  pins: !include WTLC/pins.yaml
+  base: !include WTLC/base.yaml
+  sensors: !include WTLC/sensors.yaml
+  switches: !include WTLC/switches.yaml
 
-esphome:
-  name: wtlc
-  friendly_name: WTLC
-  project:
-    name: "MDtronix.WTLC"
-    version: "HW v9.0"
-  on_boot:
-    priority: 800
-    then:
-      - display.page.show: oled_splash_page
-      - delay: 5s
-      - display.page.show: oled_level_page
-      - if:
-          condition:
-            lambda: 'return id(mode_id).state && id(water_level_id).state >= id(stop_pump_id).state;'
-          then:
-            - switch.turn_off: pump_id
-    
-esp8266:
-  board: esp12e
-  restore_from_flash: true
-
-logger:
-debug:
-api:
-ota:
-  - platform: esphome
-    on_progress: 
-      then:
-        - lambda: |-
-            id(ota_progress) = x;  // store progress percentage
-            id(oled_id).update();
-        - display.page.show: oled_ota_page
-        
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  ap: {}
-  fast_connect: true
-  # manual_ip: 
-  #   static_ip: 192.168.0.128
-  #   gateway: 192.168.0.1
-  #   subnet: 255.255.255.0
-  on_connect:
-    then:
-      if:
-        condition:
-          switch.is_on: pump_id
-        then:
-          - light.turn_on: led_id
-        else:
-          - light.turn_off: led_id
-
-captive_portal:
-web_server:
-
-uart:
-  baud_rate: 9600
-  rx_pin: $srx_pin
-  id: sensor_uart_id
-
-i2c:
-  id: i2c_id
-  scan: True
+preferences:
+  flash_write_interval: 5min
 
 globals:
   - id: ota_progress
@@ -99,13 +31,12 @@ font:
 display: !include WTLC/display.yaml
 
 sensor:
-  - !include WTLC/sensors.yaml
-        
   - platform: template
     id: water_level_id
     accuracy_decimals: 0
     unit_of_measurement: '%'
     update_interval: 1s
+    icon: mdi:water-percent
     name: Level
     lambda: |-
       int level = map(id(sensor_id).state, ${tank_height}, ${full_tank_height}, 0, 100);
@@ -117,30 +48,17 @@ sensor:
       - median:           # Smooth out noise
           window_size: 7
           send_every: 3
-          send_first_at: 1  
+          send_first_at: 1
     on_value:
       then:
-        - if:
-            condition:
-              switch.is_on: mode_id
-            then:
-              - if:
-                  condition:
-                    lambda: 'return (id(water_level_id).state <= id(start_pump_id).state) && !id(pump_id).state;'
-                  then:
-                    - switch.turn_on: pump_id
-                    - logger.log: "Water level reached start threshold, turning on pump."
-        
-              - if:
-                  condition:
-                    lambda: 'return id(water_level_id).state >= id(stop_pump_id).state;'
-                  then:
-                    - switch.turn_off: pump_id
-                    - logger.log: "Water level reached stop threshold, turning off pump."
-        - lambda: |-
-            id(oled_id).update();
-
-  
+        - component.update: oled_id
+    on_value_range:
+      - below: !lambda 'return id(start_pump_id).state;'
+        then:
+          - logger.log: "Water level below start threshold, turning ON pump."
+      - above: !lambda 'return id(stop_pump_id).state;'
+        then:
+          - logger.log: "Water level above stop threshold, turning OFF pump."
 number:
   - platform: template
     name: "Start Pump at"
@@ -174,49 +92,6 @@ button:
     id: restart_id
     entity_category: "diagnostic"
 
-  # - platform: factory_reset
-  #   name: Factory Reset
-  #   id: factory_reset_id
-  #   entity_category: 'diagnostic'
-
-switch:
-  - platform: gpio
-    id: pump_id
-    name: Pump
-    icon: mdi:pump
-    pin:
-      number: $relay_1_pin
-    restore_mode: RESTORE_DEFAULT_OFF      
-    on_turn_on: 
-      then:
-        - light.turn_on: led_id
-    on_turn_off: 
-      then:
-        - light.turn_off: led_id
-
-  - platform: template
-    id: mode_id
-    name: Automatic Mode
-    icon: mdi:flash-auto
-    optimistic: True
-    restore_mode: RESTORE_DEFAULT_OFF
-    # entity_category: 'config'
-
-  - platform: template
-    id: dryrun_id
-    optimistic: True
-    name: DryRun
-    icon: mdi:water-remove
-    restore_mode: RESTORE_DEFAULT_ON    
-    entity_category: 'config'
-
-light:
-  - platform: status_led
-    id: led_id
-    pin: 
-      number: $led_pin
-      inverted: False
-
 binary_sensor:
   - platform: gpio
     pin: 
@@ -236,13 +111,3 @@ binary_sensor:
     on_press: 
       then:
         - switch.toggle: pump_id
-
-text_sensor:
-  - platform: debug
-    reset_reason:
-      name: "Reset Reason"
-
-time:
-  - platform: sntp
-    id: sntp_time
-    timezone: "Asia/Kolkata"      

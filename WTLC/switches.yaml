@@ -1,0 +1,30 @@
+switch:
+  - platform: gpio
+    id: pump_id
+    name: Pump
+    icon: mdi:pump
+    pin:
+      number: $relay_1_pin
+    restore_mode: ALWAYS_OFF      
+    on_turn_on: 
+      then:
+        - light.turn_on: led_id
+    on_turn_off: 
+      then:
+        - light.turn_off: led_id
+
+  - platform: template
+    id: mode_id
+    name: Automatic Mode
+    icon: mdi:flash-auto
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_OFF
+    # entity_category: 'config'
+
+  - platform: template
+    id: dryrun_id
+    optimistic: True
+    name: DryRun
+    icon: mdi:water-remove
+    restore_mode: RESTORE_DEFAULT_ON    
+    entity_category: 'config'

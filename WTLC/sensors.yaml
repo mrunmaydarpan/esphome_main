@@ -1,13 +1,18 @@
-platform: a02yyuw
-name: "Distance"
-id: sensor_id
-unit_of_measurement: cm
-uart_id: sensor_uart_id
-accuracy_decimals: 0
-entity_category: "diagnostic"
-filters:
-  - multiply: 0.1     # Convert mm to cm
-  - throttle: 1s      # Update every 1 second
-  - lambda: |-
-      if (x < 0) return 0;  // Ignore negative values
-      return x;
+sensor:
+  - platform: a02yyuw
+    name: "Distance"
+    id: sensor_id
+    unit_of_measurement: cm
+    uart_id: sensor_uart_id
+    accuracy_decimals: 0
+    entity_category: "diagnostic"
+    filters:
+      - multiply: 0.1     # Convert mm to cm
+      - throttle: 1s      # Update every 1 second
+      - lambda: |-
+          if (x < 0) return 0;  // Ignore negative values
+          return x;
+
+  - platform: uptime
+    name: Uptime
+    type: timestamp
