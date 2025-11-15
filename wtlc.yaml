@@ -1,6 +1,6 @@
 substitutions:
-  tank_height: 120
-  full_tank_height: 30
+  tank_height: 100
+  full_tank_height: 10
 
   relay_1_pin: 10
   relay_2_pin: 13
@@ -36,9 +36,6 @@ esp8266:
   board: esp12e
   restore_from_flash: true
 
-# preferences:
-#   flash_write_interval: 1s
-
 logger:
 debug:
 api:
@@ -69,7 +66,6 @@ wifi:
           - light.turn_on: led_id
         else:
           - light.turn_off: led_id
-
 
 captive_portal:
 web_server:
@@ -130,14 +126,17 @@ sensor:
             then:
               - if:
                   condition:
-                    lambda: 'return (id(water_level_id).state <= id(start_pump_id).state) && id(mode_id).state;'
+                    lambda: 'return (id(water_level_id).state <= id(start_pump_id).state) && !id(pump_id).state;'
                   then:
                     - switch.turn_on: pump_id
+                    - logger.log: "Water level reached start threshold, turning on pump."
+        
               - if:
                   condition:
                     lambda: 'return id(water_level_id).state >= id(stop_pump_id).state;'
                   then:
                     - switch.turn_off: pump_id
+                    - logger.log: "Water level reached stop threshold, turning off pump."
         - lambda: |-
             id(oled_id).update();
 
