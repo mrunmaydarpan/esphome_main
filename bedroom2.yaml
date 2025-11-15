@@ -18,10 +18,10 @@ wifi:
   password: !secret wifi_password
   ap: {}
   fast_connect: True
-  manual_ip: 
-    static_ip: 192.168.0.160
-    gateway: 192.168.0.1
-    subnet: 255.255.255.0
+  # manual_ip: 
+  #   static_ip: 192.168.0.160
+  #   gateway: 192.168.0.1
+  #   subnet: 255.255.255.0
 
 captive_portal:
 logger:
@@ -29,11 +29,10 @@ api:
 ota:
   - platform: esphome
 web_server:
-  version: 3
 debug:
 
 mqtt:
-  broker: 192.168.0.205
+  broker: 192.168.0.99
   username: homeassistant
   password: darkmaster
   discover_ip: False

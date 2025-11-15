@@ -68,6 +68,7 @@ sensor:
           - logger.log:
               level: info
               format: "Water level above stop threshold, turning OFF pump."
+
 number:
   - platform: template
     name: "Start Pump at"
@@ -100,3 +101,8 @@ button:
     name: Restart
     id: restart_id
     entity_category: "diagnostic"
+
+  - platform: factory_reset
+    name: Factory Reset
+    id: factory_reset_id
+    entity_category: "diagnostic" 
