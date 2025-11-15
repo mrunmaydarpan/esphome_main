@@ -1,0 +1,19 @@
+binary_sensor:
+  - platform: gpio
+    pin: 
+      number: $mode_pin
+      mode: INPUT_PULLUP
+      inverted: True
+    id: mode_button_id
+    on_press:
+      then:
+        - switch.toggle: mode_id
+  - platform: gpio
+    id: pump_on_id
+    pin:
+      number: $button_pin
+      mode: INPUT_PULLUP
+      inverted: True
+    on_press: 
+      then:
+        - switch.toggle: pump_id
