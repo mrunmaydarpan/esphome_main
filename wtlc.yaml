@@ -8,7 +8,7 @@ packages:
   sensors: !include WTLC/sensors.yaml
   switches: !include WTLC/switches.yaml
   binary_sensor: !include WTLC/binary_sensors.yaml
-  
+
 preferences:
   flash_write_interval: 5min
 
@@ -39,27 +39,35 @@ sensor:
     update_interval: 1s
     icon: mdi:water-percent
     name: Level
-    lambda: |-
-      int level = map(id(sensor_id).state, ${tank_height}, ${full_tank_height}, 0, 100);
-      if (level < 0) level = 0;
-      if (level > 100) level = 100;
-      return level;
     filters:
       - throttle: 1s      # Update every 1 second
       - median:           # Smooth out noise
           window_size: 7
           send_every: 3
           send_first_at: 1
+    lambda: |-
+      int level = map(id(sensor_id).state, ${tank_height}, ${full_tank_height}, 0, 100);
+      if (level < 0) level = 0;
+      if (level > 100) level = 100;
+      return level;
+
     on_value:
       then:
-        - component.update: oled_id
+        - display.page.show: oled_level_page
+
     on_value_range:
       - below: !lambda 'return id(start_pump_id).state;'
         then:
-          - logger.log: "Water level below start threshold, turning ON pump."
+          - logger.log:
+              level: info
+              format: "Water level below start threshold, turning ON pump."
+
       - above: !lambda 'return id(stop_pump_id).state;'
         then:
-          - logger.log: "Water level above stop threshold, turning OFF pump."
+          - switch.turn_off: pump_id
+          - logger.log:
+              level: info
+              format: "Water level above stop threshold, turning OFF pump."
 number:
   - platform: template
     name: "Start Pump at"
@@ -92,4 +100,3 @@ button:
     name: Restart
     id: restart_id
     entity_category: "diagnostic"
-

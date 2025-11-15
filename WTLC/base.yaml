@@ -24,6 +24,7 @@ esp8266:
 logger:
 debug:
 api:
+  max_connections: 10
 ota:
   - platform: esphome
     on_progress: 
