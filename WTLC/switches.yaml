@@ -1,4 +1,8 @@
 switch:
+  - platform: safe_mode
+    id: safe_mode_switch_id
+    name: "Safe Mode"
+    entity_category: "diagnostic"
   - platform: gpio
     id: pump_id
     name: Pump

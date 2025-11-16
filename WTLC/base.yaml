@@ -5,17 +5,17 @@ esphome:
     name: "MDtronix.WTLC"
     version: "HW v9.0"
   on_boot:
-    priority: 800
-    then:
-      - display.page.show: oled_splash_page
-      - delay: 5s
-      - display.page.show: oled_level_page
-      # - componant.update: pump_id
-      - if:
-          condition:
-            lambda: 'return id(mode_id).state && id(water_level_id).state >= id(stop_pump_id).state;'
-          then:
-            - switch.turn_off: pump_id
+    - priority: 800
+      then:
+        - display.page.show: oled_splash_page
+        - if:
+            condition:
+              lambda: 'return id(mode_id).state && id(water_level_id).state >= id(stop_pump_id).state;'
+            then:
+              - switch.turn_off: pump_id
+    - priority: -100
+      then:
+        - display.page.show: oled_level_page
     
 esp8266:
   board: esp12e
@@ -63,7 +63,7 @@ uart:
 
 i2c:
   id: i2c_id
-  scan: True
+  frequency: 100kHz
 
 light:
   - platform: status_led

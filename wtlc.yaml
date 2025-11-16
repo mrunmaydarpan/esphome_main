@@ -8,40 +8,22 @@ packages:
   sensors: !include WTLC/sensors.yaml
   switches: !include WTLC/switches.yaml
   binary_sensor: !include WTLC/binary_sensors.yaml
+  display: !include WTLC/display.yaml
 
 preferences:
   flash_write_interval: 5min
-
-globals:
-  - id: ota_progress
-    type: float
-    restore_value: no
-    initial_value: '0'
-
-image:
-  - file: "MDtronix_black.png"
-    id: mdtronix_logo
-    resize: 128x64
-    type: binary
-
-font:
-  - file: "gfonts://Roboto"
-    id: font1
-    size: 12
-
-display: !include WTLC/display.yaml
 
 sensor:
   - platform: template
     id: water_level_id
     accuracy_decimals: 0
-    unit_of_measurement: '%'
+    unit_of_measurement: "%"
     update_interval: 1s
     icon: mdi:water-percent
     name: Level
     filters:
-      - throttle: 1s      # Update every 1 second
-      - median:           # Smooth out noise
+      - throttle: 1s # Update every 1 second
+      - median: # Smooth out noise
           window_size: 7
           send_every: 3
           send_first_at: 1
@@ -56,13 +38,13 @@ sensor:
         - display.page.show: oled_level_page
 
     on_value_range:
-      - below: !lambda 'return id(start_pump_id).state;'
+      - below: !lambda "return id(start_pump_id).state;"
         then:
           - logger.log:
               level: info
               format: "Water level below start threshold, turning ON pump."
 
-      - above: !lambda 'return id(stop_pump_id).state;'
+      - above: !lambda "return id(stop_pump_id).state;"
         then:
           - switch.turn_off: pump_id
           - logger.log:
@@ -81,8 +63,8 @@ number:
     unit_of_measurement: "%"
     icon: "mdi:water-check"
     initial_value: 10
-    entity_category: 'config'
-            
+    entity_category: "config"
+
   - platform: template
     name: "Stop Pump at"
     id: stop_pump_id
@@ -93,7 +75,7 @@ number:
     step: 10
     unit_of_measurement: "%"
     icon: "mdi:water-check"
-    initial_value: 100    
+    initial_value: 100
     entity_category: "config"
 
 button:
@@ -105,4 +87,4 @@ button:
   - platform: factory_reset
     name: Factory Reset
     id: factory_reset_id
-    entity_category: "diagnostic" 
+    entity_category: "diagnostic"
