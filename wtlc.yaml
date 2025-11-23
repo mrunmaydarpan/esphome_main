@@ -1,55 +1,115 @@
 substitutions:
   tank_height: 100
-  full_tank_height: 10
+  full_tank_distance: 10
 
 packages:
   pins: !include WTLC/pins.yaml
-  base: !include WTLC/base.yaml
-  sensors: !include WTLC/sensors.yaml
-  switches: !include WTLC/switches.yaml
-  binary_sensor: !include WTLC/binary_sensors.yaml
   display: !include WTLC/display.yaml
+#   sensors: !include WTLC/sensors.yaml
+#   switches: !include WTLC/switches.yaml
+#   binary_sensor: !include WTLC/binary_sensors.yaml
 
-preferences:
-  flash_write_interval: 5min
-
-sensor:
-  - platform: template
-    id: water_level_id
-    accuracy_decimals: 0
-    unit_of_measurement: "%"
-    update_interval: 1s
-    icon: mdi:water-percent
-    name: Level
-    filters:
-      - throttle: 1s # Update every 1 second
-      - median: # Smooth out noise
-          window_size: 7
-          send_every: 3
-          send_first_at: 1
-    lambda: |-
-      int level = map(id(sensor_id).state, ${tank_height}, ${full_tank_height}, 0, 100);
-      if (level < 0) level = 0;
-      if (level > 100) level = 100;
-      return level;
-
-    on_value:
+esphome:
+  name: wtlc
+  friendly_name: WTLC
+  project:
+    name: "MDtronix.WTLC"
+    version: "HW v9.0"
+  on_boot:
+    - priority: -100
       then:
-        - display.page.show: oled_level_page
+        - if:
+            condition:
+              lambda: return !isnan(id(water_level_id).state) && id(mode_id).state && id(water_level_id).state >= id(stop_pump_id).state;
+            then:
+              - switch.turn_off: pump_id
 
-    on_value_range:
-      - below: !lambda "return id(start_pump_id).state;"
-        then:
-          - logger.log:
-              level: info
-              format: "Water level below start threshold, turning ON pump."
+esp8266:
+  board: esp01_1m
+  restore_from_flash: true
 
-      - above: !lambda "return id(stop_pump_id).state;"
-        then:
-          - switch.turn_off: pump_id
-          - logger.log:
-              level: info
-              format: "Water level above stop threshold, turning OFF pump."
+logger:
+  level: DEBUG
+
+debug:
+  update_interval: 10s
+api:
+ota:
+  - platform: esphome
+    
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap: {}
+  fast_connect: true
+  manual_ip: 
+    static_ip: 192.168.0.129
+    gateway: 192.168.0.1
+    subnet: 255.255.255.0
+  on_connect:
+    then:
+      - if:
+          condition:
+            switch.is_on: pump_relay_id
+          then:
+            light.turn_on: led_id
+          else:
+            light.turn_off: led_id
+
+captive_portal:
+web_server:
+  version: 3
+
+####################################################################################
+
+globals:
+  - id: var_sensor_state
+    type: bool
+    initial_value: 'false'
+
+  - id: ota_inProgress
+    type: bool
+    initial_value: 'false'
+
+####################################################################################
+
+light:
+  - platform: status_led
+    id: led_id
+    pin:
+      number: $led_pin
+      inverted: False
+
+####################################################################################
+
+text_sensor:
+  - platform: debug
+    reset_reason:
+      name: "Reset Reason"
+
+  - platform: wifi_info
+    ip_address:
+      name: IP
+      icon: mdi:ip
+
+####################################################################################
+
+# output:
+#   - platform: esp8266_pwm
+#     id: rtttl_out
+#     pin:
+#       number: $buzzer_pin
+#       inverted: False
+#     frequency: 2000 Hz
+
+####################################################################################
+
+# rtttl:
+#   output: rtttl_out
+#   id: my_rtttl
+#   gain: 60%
+
+####################################################################################
 
 number:
   - platform: template
@@ -78,6 +138,8 @@ number:
     initial_value: 100
     entity_category: "config"
 
+####################################################################################
+
 button:
   - platform: restart
     name: Restart
@@ -88,3 +150,271 @@ button:
     name: Factory Reset
     id: factory_reset_id
     entity_category: "diagnostic"
+
+####################################################################################
+
+# time:
+#   - platform: sntp
+#     id: sntp_time
+#     timezone: "Asia/Kolkata"
+
+####################################################################################
+
+uart:
+  baud_rate: 9600
+  rx_pin: $srx_pin
+  tx_pin: $stx_pin
+  id: uart_id
+  debug:
+    direction: RX
+    dummy_receiver: True  # Receive bytes without a UARTDevice component [web:40][web:46]
+    after:
+      timeout: 100ms      # Collect bursts before invoking sequence [web:42]
+    sequence:
+      - lambda: |-
+          // bytes: std::vector<uint8_t>; parse 0xFF H L SUM frames [web:50]
+          static std::vector<uint8_t> buf;
+          buf.insert(buf.end(), bytes.begin(), bytes.end()); // Append new bytes
+
+          while (buf.size() >= 4) {                          // Try to extract full 4-byte frames
+            auto it = std::find(buf.begin(), buf.end(), 0xFF);    // Seek header 0xFF
+            if (it == buf.end()) { buf.clear(); break; }
+            buf.erase(buf.begin(), it);                           // Remove leading noise
+            if (buf.size() < 4) break;
+            uint8_t h = buf[0];
+            uint8_t dH = buf[1];
+            uint8_t dL = buf[2];
+            uint8_t sum = buf[3];
+            uint8_t calc = (uint8_t)(h + dH + dL);                // Validate header and checksum: (0xFF + dH + dL) & 0xFF == sum [web:50]
+            
+            if (h == 0xFF && calc == sum) 
+            {
+              uint16_t mm = ((uint16_t)dH << 8) | dL;
+              int cm = mm / 10; // Datasheet: distance in mm [web:50]
+              id(sensor_id).publish_state(cm);  // Publish distance [web:41]
+            }
+            else 
+            {
+              // ESP_LOGW("A02YYUW", "Checksum error: %02X %02X %02X %02X", h, dH, dL, sum);
+              // delay(100);
+            }
+            
+            // Consume this frame
+            buf.erase(buf.begin(), buf.begin() + 4);
+          }
+          // UARTDebug::log_string(direction, bytes);
+
+sensor:
+  # - platform: uptime
+  #   name: Uptime
+  #   type: timestamp
+
+  - platform: template
+    id: sensor_id
+    name: "Distance_UART"
+    unit_of_measurement: "cm"
+    device_class: distance
+    accuracy_decimals: 0
+    entity_category: "diagnostic"
+    filters:
+      - throttle: 2s
+      - timeout: 5s
+
+  # - platform: a02yyuw
+  #   name: "Distance"
+  #   id: sensor_id
+  #   uart_id: uart_id
+  #   unit_of_measurement: cm
+  #   accuracy_decimals: 0
+  #   entity_category: "diagnostic"
+  #   device_class: "distance"
+  #   filters:
+  #     - multiply: 0.1     # Convert mm to cm
+  #     - throttle: 1s      # Update every 1 seconds
+  #     # - lambda: |-
+  #     #     if (isnan(x) || x == 0 || x < 0) {
+  #     #       return 450;
+  #     #     } else {
+  #     #       return x;
+  #     #     }
+  #   on_value_range:
+  #     - below: $full_tank_distance
+  #       then:
+  #         - if:
+  #             condition:
+  #               switch.is_on: pump_id
+  #             then:
+  #               - switch.turn_off: pump_id
+
+  - platform: template
+    id: water_level_id
+    accuracy_decimals: 0
+    unit_of_measurement: "%"
+    update_interval: 1s
+    icon: mdi:water-percent
+    name: Level
+    # filters:
+    #   - median: # Smooth out noise
+    #       window_size: 7
+    #       send_every: 3
+    #       send_first_at: 1
+    lambda: |-
+      // if (isnan(id(sensor_id).state)) return 0;
+      auto d = id(sensor_id).state;
+
+      auto level = map(d, ${tank_height}, ${full_tank_distance}, 0, 100);
+      if (level < 0) level = 0;
+      if (level > 100) level = 100;
+      return level;
+    on_value_range:
+      - below: !lambda return id(start_pump_id).state;
+        then:
+          - logger.log:
+              tag: "water_level"
+              level: warn
+              format: "Water level below start threshold, turning ON pump."
+          - if:
+              condition:
+                and:
+                  - switch.is_on: mode_id
+                  - switch.is_off: pump_id
+              then:
+                - switch.turn_on: pump_id
+
+
+      - above: !lambda return id(stop_pump_id).state;
+        then:
+          - switch.turn_off: pump_id
+          - logger.log:
+              tag: "water_level"
+              level: warn
+              format: "Water level above stop threshold, turning OFF pump."          
+
+####################################################################################
+
+binary_sensor:
+  - platform: gpio
+    pin: 
+      number: $mode_pin
+      mode: INPUT_PULLUP
+      inverted: True
+    id: mode_button_id
+    filters:
+      - delayed_on: 100ms
+      - delayed_off: 100ms
+    on_press:
+      then:
+        - switch.toggle: mode_id
+
+  - platform: gpio
+    id: pump_on_id
+    pin:
+      number: $button_pin
+      mode: INPUT_PULLUP
+      inverted: True
+    on_press: 
+      then:
+        - switch.toggle: pump_id
+
+  - platform: template
+    id: sensor_state_id
+    name: Sensor Status
+    device_class: problem
+    on_press:
+        - display.page.show: oled_error_page
+    on_release:
+        - display.page.show: oled_level_page
+
+
+####################################################################################
+
+switch:
+  # - platform: safe_mode
+  #   id: safe_mode_switch_id
+  #   name: "Safe Mode"
+  #   entity_category: "diagnostic"
+    
+  - platform: template
+    id: pump_id
+    name: Pump
+    icon: mdi:pump
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:    
+      then:
+        - if:
+            condition:
+              lambda: |-
+                ESP_LOGI("CHECK", "%s >>>> %s | %s | %s", id(sensor_id).state > ${full_tank_distance} && id(pump_relay_id).state? "true" : "false", id(sensor_id).state, ${full_tank_distance}, id(pump_relay_id).state);
+                return id(sensor_id).state > ${full_tank_distance} && id(pump_relay_id).state;
+            then:
+              - logger.log:
+                  tag: "pump"
+                  level: warn
+                  format: "pump on"
+              - switch.turn_on: pump_relay_id 
+
+  - platform: gpio
+    id: pump_relay_id
+    internal: true
+    pin:
+      number: $relay_1_pin
+    # restore_mode: ALWAYS_OFF
+    on_turn_on: 
+      then:
+        - light.turn_on: led_id
+    on_turn_off: 
+      then:
+        - light.turn_off: led_id
+
+  - platform: template
+    id: mode_id
+    name: Automatic Mode
+    icon: mdi:flash-auto
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_OFF
+    # entity_category: 'config'clearle
+
+  - platform: template
+    id: dryrun_id
+    optimistic: True
+    name: DryRun
+    icon: mdi:water-remove
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: 'config'
+
+####################################################################################
+
+# select:
+#   - platform: logger
+#     name: "Logger select"
+
+####################################################################################
+
+interval:
+  - interval: 15s
+    id: sensor_check_id
+    then:
+      - lambda: |-
+          ESP_LOGI("SENSOR_UART", "Checking sensor......");
+          if(isnan(id(sensor_id).state))
+          {
+            id(var_sensor_state) = false;
+            return id(sensor_state_id).publish_state(true);
+            ESP_LOGE("UART_SENSOR", "sensor error");
+            // return id(sensor_status_id).publish_state("Error");
+          }
+          else if(id(sensor_id).state <= 0) 
+          {
+            id(var_sensor_state) = false;
+            return id(sensor_state_id).publish_state(true);
+            ESP_LOGE("UART_SENSOR", "sensor invalid");
+            // return id(sensor_status_id).publish_state("Invalid");
+          }
+          else
+          {
+            id(var_sensor_state) = true;
+            ESP_LOGI("SENSOR_UART", "Sensor OK | Data: %.2f", id(sensor_id).state);
+            return id(sensor_state_id).publish_state(false);            
+            // return id(sensor_status_id).publish_state("OK");
+          }

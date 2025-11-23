@@ -1,18 +1,116 @@
+uart:
+  baud_rate: 9600
+  rx_pin: $srx_pin
+  tx_pin: $stx_pin
+  id: uart_id
+  rx_buffer_size: 256
+  debug:
+    direction: RX
+    dummy_receiver: True  # Receive bytes without a UARTDevice component [web:40][web:46]
+    after:
+      timeout: 100ms      # Collect bursts before invoking sequence [web:42]
+    sequence:
+      - lambda: |-
+          // bytes: std::vector<uint8_t>; parse 0xFF H L SUM frames [web:50]
+          static std::vector<uint8_t> buf;
+          buf.insert(buf.end(), bytes.begin(), bytes.end()); // Append new bytes
+
+          while (buf.size() >= 4) {                          // Try to extract full 4-byte frames
+            auto it = std::find(buf.begin(), buf.end(), 0xFF);    // Seek header 0xFF
+            if (it == buf.end()) { buf.clear(); break; }
+            buf.erase(buf.begin(), it);                           // Remove leading noise
+            if (buf.size() < 4) break;
+            uint8_t h = buf[0];
+            uint8_t dH = buf[1];
+            uint8_t dL = buf[2];
+            uint8_t sum = buf[3];
+            uint8_t calc = (uint8_t)(h + dH + dL);                // Validate header and checksum: (0xFF + dH + dL) & 0xFF == sum [web:50]
+            
+            if (h == 0xFF && calc == sum) 
+            {
+              uint16_t mm = ((uint16_t)dH << 8) | dL;
+              int cm = mm / 10; // Datasheet: distance in mm [web:50]
+              id(sensor_id).publish_state(cm);  // Publish distance [web:41]
+            }
+            else 
+            {
+              // ESP_LOGW("A02YYUW", "Checksum error: %02X %02X %02X %02X", h, dH, dL, sum);
+              // delay(100);
+            }
+            
+            // Consume this frame
+            buf.erase(buf.begin(), buf.begin() + 4);
+          }
+          // UARTDebug::log_string(direction, bytes);
+
+####################################################################################
+
 sensor:
-  - platform: a02yyuw
-    name: "Distance"
+  # - platform: uptime
+  #   name: Uptime
+  #   type: timestamp
+
+  # - platform: a02yyuw
+  #   name: "Distance"
+  #   id: sensor_id
+  #   unit_of_measurement: cm
+  #   uart_id: sensor_uart_id
+  #   accuracy_decimals: 0
+  #   entity_category: "diagnostic"
+  #   filters:
+  #     - multiply: 0.1     # Convert mm to cm
+  #     - throttle: 1s      # Update every 1 second
+  #     - lambda: |-
+  #         if (x < 0) return 0;  // Ignore negative values
+  #         return x;
+  #   on_value:
+  #     then:
+  #       - lambda: |-
+  #           if (x == 0 || x > 450) {
+  #             id(sensor_status).publish_state("Disconnected");
+  #           } else {
+  #             id(sensor_status).publish_state("OK");
+  #           }
+  - platform: template
     id: sensor_id
-    unit_of_measurement: cm
-    uart_id: sensor_uart_id
+    name: "Distance_UART"
+    unit_of_measurement: "cm"
+    device_class: distance
     accuracy_decimals: 0
     entity_category: "diagnostic"
     filters:
-      - multiply: 0.1     # Convert mm to cm
-      - throttle: 1s      # Update every 1 second
-      - lambda: |-
-          if (x < 0) return 0;  // Ignore negative values
-          return x;
+      - throttle: 2s
+      - timeout: 5s
+            
+  - platform: template
+    id: water_level_id
+    accuracy_decimals: 0
+    unit_of_measurement: "%"
+    update_interval: 1s
+    icon: mdi:water-percent
+    name: Level
+    filters:
+      # - throttle: 1s # Update every 1 second
+      - median: # Smooth out noise
+          window_size: 7
+          send_every: 3
+          send_first_at: 1
+    lambda: |-
+      int level = map(id(sensor_id).state, ${tank_height}, ${full_tank_height}, 0, 100);
+      if (level < 0) level = 0;
+      if (level > 100) level = 100;
+      return level;
 
-  - platform: uptime
-    name: Uptime
-    type: timestamp
+    on_value_range:
+      - below: !lambda "return id(start_pump_id).state;"
+        then:
+          - logger.log:
+              level: warn
+              format: "Water level below start threshold, turning ON pump."
+
+      - above: !lambda "return id(stop_pump_id).state;"
+        then:
+          - switch.turn_off: pump_id
+          - logger.log:
+              level: warn
+              format: "Water level above stop threshold, turning OFF pump."

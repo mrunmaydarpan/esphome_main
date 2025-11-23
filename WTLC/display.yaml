@@ -1,28 +1,113 @@
-image:
-  - file: "MDtronix_black.png"
-    id: logo_black
-    resize: 128x64
-    type: binary
+i2c:
+  id: bus_a
+  sda: $sda_pin
+  scl: $scl_pin
+  frequency: 100kHz
 
-  - file: "MDtronix_white.png"
-    id: logo_white
-    resize: 128x64
+esphome:
+  on_boot:
+    - priority: 800
+      then:
+        # - display.page.show: oled_splash_page
+        - delay: 3s
+        - globals.set: 
+            id: splash_flag
+            value: "true"
+        - display.page.show: oled_level_page
+   
+
+    # - priority: -800
+    #   then:
+    #     - display.page.show: oled_level_page
+ota:
+  - platform: esphome
+    on_progress:
+      then:
+        - lambda: |-
+            id(ota_progress) = x;  // store progress percentage
+            id(oled_id).update();
+            id(ota_inProgress) = true;
+        - display.page.show: oled_ota_page
+
+image:
+  defaults:
     type: binary
+    resize: 128x64
+  images:
+    - file: "WTLC/logo.png"
+      id: logo
+    - file: "WTLC/alert.png"
+      id: alert
+
+  #   type: grayscale
+  #   transparency: alpha_channel
+  #   resize: 80x80
 
 globals:
   - id: ota_progress
     type: float
     restore_value: no
-    initial_value: '0'
+    initial_value: "0"
+
+  - id: splash_flag
+    type: bool
+    restore_value: no
+    initial_value: "false"
+ 
 
 font:
   - file: "gfonts://Roboto"
     id: font1
-    size: 12
+    size: 14
+  - file: "gfonts://Roboto"
+    id: font2
+    size: 42
+  - file: "gfonts://Roboto"
+    id: font3
+    size: 24
+
+####################################################################################
 
 display:
   - platform: ssd1306_i2c
     model: "SSD1306 128x64"
     id: oled_id
     address: 0x3C
-    pages: !include display_pages.yaml
+    # update_interval: 5s
+    pages:
+      - id: oled_splash_page
+        lambda: |-
+          it.clear();
+          if(!id(splash_flag)) {
+            uint8_t x = (it.get_width() - id(logo).get_width()) / 2;
+            uint8_t y = (it.get_height() - id(logo).get_height()) / 2; 
+            it.image(x, y, id(logo));
+          }
+         
+      - id: oled_level_page
+        lambda: |-
+          it.clear();
+          // it.printf(10, 0, id(font1), "L: %.0f%%", id(water_level_id).state);
+          it.printf(10, 0, id(font1), "%s", id(mode_id).state? "AUTO" : "MANUAL");
+          it.printf(108, 16, id(font2), TextAlign::RIGHT, "%0.0f", id(water_level_id).state);
+          it.printf(110, 32, id(font3), "%%");
+
+          // it.printf(10, 40, id(font1), "D: %.0fcm", id(sensor_id).state);
+
+      - id: oled_ota_page
+        lambda: |-
+          float p = id(ota_progress);
+          if (p < 0 || p > 100) p = 0;
+          it.printf(05, 0, id(font1), "UPDATING: %0.0f%%", p);
+          it.rectangle(05, 20, it.get_width() - 10, 20);
+          int bar_width = (int)((it.get_width() - 12) * p / 100.0f);
+          it.filled_rectangle(6, 21, bar_width, 18);
+
+      - id: oled_error_page
+        lambda: |-
+          it.clear();
+          // it.printf(10,0, id(font1), "ERROR");  
+          // uint8_t x = (it.get_width() - id(alert).get_width()) / 2;
+          // uint8_t y = (it.get_height() - id(alert).get_height()) / 2; 
+          it.clear();
+          it.image(0, 0, id(alert));

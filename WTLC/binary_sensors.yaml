@@ -8,6 +8,7 @@ binary_sensor:
     on_press:
       then:
         - switch.toggle: mode_id
+
   - platform: gpio
     id: pump_on_id
     pin:
@@ -17,3 +18,5 @@ binary_sensor:
     on_press: 
       then:
         - switch.toggle: pump_id
+
+        

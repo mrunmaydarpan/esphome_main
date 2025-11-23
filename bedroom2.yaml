@@ -18,10 +18,10 @@ wifi:
   password: !secret wifi_password
   ap: {}
   fast_connect: True
-  # manual_ip: 
-  #   static_ip: 192.168.0.160
-  #   gateway: 192.168.0.1
-  #   subnet: 255.255.255.0
+  manual_ip: 
+    static_ip: 192.168.0.227
+    gateway: 192.168.0.1
+    subnet: 255.255.255.0
 
 captive_portal:
 logger:
@@ -29,6 +29,7 @@ api:
 ota:
   - platform: esphome
 web_server:
+  version: 3
 debug:
 
 mqtt:
@@ -69,6 +70,9 @@ light:
     name: Bulb
     id: light_3
     restore_mode: RESTORE_DEFAULT_OFF
+  - platform: status_led
+    pin: 16
+    id: status_led_id
 
 fan:
   - platform: template
@@ -147,9 +151,12 @@ text_sensor:
   - platform: debug
     reset_reason:
       name: "Reset Reason"         
+  - platform: wifi_info
+    ip_address: 
+      name: IP
 
 button:
   - platform: restart
     name: restart
-  - platform: factory_reset
-    name: Factory reset 
+  # - platform: factory_reset
+  #   name: Factory reset 

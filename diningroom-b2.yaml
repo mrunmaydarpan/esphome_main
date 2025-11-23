@@ -112,7 +112,10 @@ text_sensor:
   - platform: debug
     reset_reason:
       name: "Reset Reason"   
-
+  - platform: wifi_info
+    ip_address:
+      name: IP
+      icon: mdi:ip  
 button:
   - platform: restart
     name: restart
