@@ -18,7 +18,7 @@ esp8266:
 
 logger:
 api:
-debug:
+# debug:
 ota:
   - platform: esphome
 
@@ -75,9 +75,9 @@ status_led:
   pin: $statusled_pin
 
 text_sensor:
-  - platform: debug
-    reset_reason:
-      name: "Reset Reason"     
+  # - platform: debug
+  #   reset_reason:
+  #     name: "Reset Reason"     
   - platform: wifi_info
     ip_address:
       name: IP

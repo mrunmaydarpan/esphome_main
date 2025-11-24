@@ -30,7 +30,7 @@ ota:
   - platform: esphome
 web_server:
   version: 3
-debug:
+# debug:
 
 mqtt:
   broker: 192.168.0.99
@@ -148,9 +148,9 @@ binary_sensor:
       - fan.toggle: fan_1
 
 text_sensor:
-  - platform: debug
-    reset_reason:
-      name: "Reset Reason"         
+  # - platform: debug
+  #   reset_reason:
+  #     name: "Reset Reason"         
   - platform: wifi_info
     ip_address: 
       name: IP

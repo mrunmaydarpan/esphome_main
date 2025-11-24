@@ -36,7 +36,7 @@ ota:
   - platform: esphome
 web_server:
   version: 3
-debug:
+# debug:
 
 status_led:
   pin: $statusLed
@@ -109,9 +109,9 @@ binary_sensor:
       - delayed_off: 500ms
          
 text_sensor:
-  - platform: debug
-    reset_reason:
-      name: "Reset Reason"   
+  # - platform: debug
+  #   reset_reason:
+  #     name: "Reset Reason"   
   - platform: wifi_info
     ip_address:
       name: IP

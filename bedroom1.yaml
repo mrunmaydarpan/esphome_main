@@ -38,7 +38,7 @@ ota:
   - platform: esphome
 web_server:
   version: 3
-debug:
+# debug:
     
 output:
   - platform: gpio
@@ -116,9 +116,9 @@ binary_sensor:
       - fan.toggle: fan_id
 
 text_sensor:
-  - platform: debug
-    reset_reason:
-      name: "Reset Reason"         
+  # - platform: debug
+  #   reset_reason:
+  #     name: "Reset Reason"         
   - platform: wifi_info
     ip_address:
       name: IP

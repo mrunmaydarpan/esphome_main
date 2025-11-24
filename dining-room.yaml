@@ -33,7 +33,7 @@ wifi:
 captive_portal:
 web_server:
 logger:
-debug:  
+# debug:  
 api:
 # mqtt:
 #   broker: homeassistant.local
@@ -121,9 +121,9 @@ status_led:
   pin: $statusled
 
 text_sensor:
-  - platform: debug
-    reset_reason:
-      name: "Reset Reason"     
+  # - platform: debug
+  #   reset_reason:
+  #     name: "Reset Reason"     
   - platform: wifi_info
     ip_address:
       name: IP
