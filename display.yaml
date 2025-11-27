@@ -23,6 +23,7 @@ ota:
 wifi:
   ssid: "home"
   password: "darkmaster"
+  min_auth_mode: WPA2
   ap: {}
 
 captive_portal:

@@ -28,7 +28,8 @@ wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   ap: {}
-
+  min_auth_mode: WPA2
+  
 captive_portal:
 web_server:
 
